@@ -28,6 +28,7 @@ import ManageUsers from './pages/admin/ManageUsers';
 import ManageElections from './pages/admin/ManageElections';
 import ManageCandidates from './pages/admin/ManageCandidates';
 import ElectionResults from './pages/admin/ElectionResults';
+import AdvancedAnalytics from './pages/admin/AdvancedAnalytics';
 
 function App() {
   return (
@@ -67,6 +68,7 @@ function App() {
             <Route path="elections" element={<ManageElections />} />
             <Route path="candidates" element={<ManageCandidates />} />
             <Route path="elections/:id/results" element={<ElectionResults />} />
+            <Route path="analytics" element={<AdvancedAnalytics />} />
           </Route>
         </Routes>
       </Router>

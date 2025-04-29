@@ -392,6 +392,15 @@ const Dashboard = () => {
               )}
             </div>
           </motion.div>
+
+          <motion.div variants={itemVariants} className="flex justify-end mt-4">
+            <Link 
+              to="/admin/analytics" 
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              View Advanced Analytics →
+            </Link>
+          </motion.div>
         </motion.div>
       )}
     </div>
