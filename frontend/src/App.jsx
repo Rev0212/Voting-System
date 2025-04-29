@@ -62,7 +62,7 @@ function App() {
             <Route path="users" element={<ManageUsers />} />
             <Route path="elections" element={<ManageElections />} />
             <Route path="candidates" element={<ManageCandidates />} />
-            <Route path="results/:electionId" element={<ElectionResults />} />
+            <Route path="/elections/:id/results" element={<ElectionResults />} />
           </Route>
         </Routes>
       </Router>

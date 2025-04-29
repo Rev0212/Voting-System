@@ -107,7 +107,6 @@ router.get('/user', protect, async (req, res) => {
 });
 
 // @route   GET /api/votes/results/:electionId
-// @desc    Get election results (full tally)
 // @access  Public (only for ended elections, otherwise admin only)
 router.get('/results/:electionId', async (req, res) => {
   try {

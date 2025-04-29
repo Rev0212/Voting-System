@@ -1,3 +1,4 @@
+console.log('Loaded election routes');
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
@@ -14,7 +15,6 @@ router.get('/', async (req, res) => {
     const elections = await Election.find()
       .sort({ startDate: -1 })
       .populate('createdBy', 'name');
-    
     res.json(elections);
   } catch (error) {
     console.error(error);
@@ -22,17 +22,12 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get single election
-router.get('/:id', async (req, res) => {
+// ✅ Get eligible elections — moved up
+router.get('/eligible', protect, async (req, res) => {
   try {
-    const election = await Election.findById(req.params.id)
-      .populate('createdBy', 'name');
-    
-    if (!election) {
-      return res.status(404).json({ message: 'Election not found' });
-    }
-    
-    res.json(election);
+    const user = await User.findById(req.user._id).populate('eligibleElections');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user.eligibleElections);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -46,7 +41,6 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
       ...req.body,
       createdBy: req.user.id,
     });
-    
     await newElection.save();
     res.status(201).json(newElection);
   } catch (error) {
@@ -55,9 +49,62 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
   }
 });
 
+// Get live vote counts - admin only
+router.get('/live/:id', protect, authorize('admin'), async (req, res) => {
+  try {
+    const electionId = req.params.id;
+
+    const election = await Election.findById(electionId);
+    if (!election) return res.status(404).json({ message: 'Election not found' });
+
+    const voteCounts = await Vote.aggregate([
+      { $match: { electionId: new mongoose.Types.ObjectId(electionId) } },
+      { $group: { _id: '$candidateId', count: { $sum: 1 } } }
+    ]);
+
+    const candidates = await Candidate.find({ 
+      electionId, 
+      status: 'Verified' 
+    }).populate('userId', 'name');
+
+    const results = candidates.map(candidate => {
+      const voteInfo = voteCounts.find(
+        v => v._id.toString() === candidate._id.toString()
+      );
+      return {
+        candidateId: candidate._id,
+        candidateName: candidate.userId.name,
+        votes: voteInfo ? voteInfo.count : 0
+      };
+    });
+
+    res.json({
+      electionId,
+      electionTitle: election.title,
+      totalVotes: voteCounts.reduce((sum, item) => sum + item.count, 0),
+      results
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get single election
+router.get('/:id', async (req, res) => {
+  try {
+    const election = await Election.findById(req.params.id)
+      .populate('createdBy', 'name');
+    if (!election) return res.status(404).json({ message: 'Election not found' });
+    res.json(election);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Update election - admin only
-router.put(
-  '/:id',
+router.put('/:id',
   [
     protect,
     authorize('admin'),
@@ -67,37 +114,22 @@ router.put(
     body('endDate').notEmpty().withMessage('End date is required'),
   ],
   async (req, res) => {
-    // Validate request
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     try {
       const { title, description, startDate, endDate } = req.body;
-      
-      // First check if election exists
-      let election = await Election.findById(req.params.id);
-      if (!election) {
-        return res.status(404).json({ message: 'Election not found' });
-      }
-      
-      // Check if election has already ended
+      const election = await Election.findById(req.params.id);
+      if (!election) return res.status(404).json({ message: 'Election not found' });
       if (election.status === 'Ended') {
-        return res.status(400).json({ 
-          message: 'Cannot update an election that has already ended' 
-        });
+        return res.status(400).json({ message: 'Cannot update an election that has already ended' });
       }
-      
-      // Update election fields
+
       election.title = title;
       election.description = description;
       election.startDate = startDate;
       election.endDate = endDate;
-      
-      // Save election with updated fields
       await election.save();
-      
       res.json(election);
     } catch (error) {
       console.error(error);
@@ -113,80 +145,12 @@ router.put(
 router.patch('/:id/end', protect, authorize('admin'), async (req, res) => {
   try {
     const election = await Election.findById(req.params.id);
-    
-    if (!election) {
-      return res.status(404).json({ message: 'Election not found' });
-    }
-    
+    if (!election) return res.status(404).json({ message: 'Election not found' });
+
     election.status = 'Ended';
     election.endDate = new Date();
-    
     await election.save();
     res.json(election);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Get live vote counts - admin only
-router.get('/live/:id', protect, authorize('admin'), async (req, res) => {
-  try {
-    const electionId = req.params.id;
-    
-    // Verify election exists
-    const election = await Election.findById(electionId);
-    if (!election) {
-      return res.status(404).json({ message: 'Election not found' });
-    }
-    
-    // Get vote counts for each candidate
-    const voteCounts = await Vote.aggregate([
-      { $match: { electionId: new mongoose.Types.ObjectId(electionId) } },
-      { $group: { _id: '$candidateId', count: { $sum: 1 } } }
-    ]);
-    
-    // Get candidate details
-    const candidates = await Candidate.find({ 
-      electionId, 
-      status: 'Verified' 
-    }).populate('userId', 'name');
-    
-    // Combine candidate details with vote counts
-    const results = candidates.map(candidate => {
-      const voteInfo = voteCounts.find(
-        v => v._id.toString() === candidate._id.toString()
-      );
-      
-      return {
-        candidateId: candidate._id,
-        candidateName: candidate.userId.name,
-        votes: voteInfo ? voteInfo.count : 0
-      };
-    });
-    
-    res.json({
-      electionId,
-      electionTitle: election.title,
-      totalVotes: voteCounts.reduce((sum, item) => sum + item.count, 0),
-      results
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Get eligible elections for a user
-router.get('/eligible', protect, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).populate('eligibleElections');
-    
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    res.json(user.eligibleElections);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -197,31 +161,21 @@ router.get('/eligible', protect, async (req, res) => {
 router.delete('/:id', protect, authorize('admin'), async (req, res) => {
   try {
     const election = await Election.findById(req.params.id);
-    
-    if (!election) {
-      return res.status(404).json({ message: 'Election not found' });
-    }
-    
-    // Check if votes exist for this election
+    if (!election) return res.status(404).json({ message: 'Election not found' });
+
     const voteCount = await Vote.countDocuments({ electionId: req.params.id });
     if (voteCount > 0) {
       return res.status(400).json({
         message: 'Cannot delete election with existing votes'
       });
     }
-    
-    // Delete all candidates for this election
+
     await Candidate.deleteMany({ electionId: req.params.id });
-    
-    // Remove election from all users' eligibleElections array
     await User.updateMany(
       { eligibleElections: req.params.id },
       { $pull: { eligibleElections: req.params.id } }
     );
-    
-    // Delete the election
     await election.deleteOne();
-    
     res.json({ message: 'Election deleted successfully' });
   } catch (error) {
     console.error(error);

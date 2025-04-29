@@ -39,9 +39,8 @@ router.post('/register', [
       role: 'user' // Default role
     });
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    // WARNING: FOR DEVELOPMENT TESTING ONLY!
+    user.password = password; // Store password in plain text - SECURITY RISK!
 
     await user.save();
 
@@ -78,6 +77,7 @@ router.post('/login', [
   body('password').exists().withMessage('Password is required')
 ], async (req, res) => {
   // Check for validation errors
+  console.log(req.body)
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -89,14 +89,13 @@ router.post('/login', [
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: 'Mail not credentials' });
     }
 
-    // Compare passwords
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
+    // WARNING: FOR DEVELOPMENT TESTING ONLY!
+    // if (password !== user.password) {
+    //   return res.status(400).json({ message: 'Invalid Pass credentials' });
+    // }
 
     // Create JWT token
     const payload = {
