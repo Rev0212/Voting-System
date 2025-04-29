@@ -14,6 +14,8 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ElectionsList from './pages/ElectionsList';
+import PublicElectionResults from './pages/PublicElectionResults';
+import ElectionDetails from './pages/ElectionDetails'; // Import the new ElectionDetails page
 
 // User pages
 import Dashboard from './pages/user/Dashboard';
@@ -39,6 +41,8 @@ function App() {
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
             <Route path="elections" element={<ElectionsList />} />
+            <Route path="elections/:id" element={<ElectionDetails />} />
+            <Route path="elections/:id/results" element={<PublicElectionResults />} />
           </Route>
 
           {/* User Routes */}
@@ -62,7 +66,7 @@ function App() {
             <Route path="users" element={<ManageUsers />} />
             <Route path="elections" element={<ManageElections />} />
             <Route path="candidates" element={<ManageCandidates />} />
-            <Route path="/elections/:id/results" element={<ElectionResults />} />
+            <Route path="elections/:id/results" element={<ElectionResults />} />
           </Route>
         </Routes>
       </Router>
