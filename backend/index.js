@@ -9,7 +9,7 @@ const app = express();
 
 // CORS configuration - PLACE THIS FIRST, before any routes
 const corsOptions = {
-  origin: 'http://localhost:5173',
+  origin: ['http://localhost:5173', 'https://your-netlify-app.netlify.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization']
