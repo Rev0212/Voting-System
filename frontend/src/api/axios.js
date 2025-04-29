@@ -2,6 +2,7 @@ import axios from 'axios';
 
 const instance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://voting-system-i5jn.onrender.com/api',
+  
 });
 
 // Add a request interceptor to add the token to all requests
